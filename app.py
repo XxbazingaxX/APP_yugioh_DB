@@ -85,6 +85,22 @@ class App(ctk.CTk):
         self._nav_btns = {}
         self._cartas_expanded = False
 
+        # ── Buscador global ──
+        search_frame = ctk.CTkFrame(nav, fg_color="transparent")
+        search_frame.pack(fill="x", pady=(2, 4))
+        search_frame.grid_columnconfigure(0, weight=1)
+        self._global_search_var = ctk.StringVar()
+        gsearch_entry = ctk.CTkEntry(
+            search_frame, textvariable=self._global_search_var,
+            placeholder_text="🔍 Buscar…", font=ctk.CTkFont(size=12))
+        gsearch_entry.grid(row=0, column=0, sticky="ew", padx=(0, 2))
+        gsearch_entry.bind("<Return>", lambda _: self._do_global_search())
+        ctk.CTkButton(
+            search_frame, text="▶", width=28,
+            command=self._do_global_search,
+            font=ctk.CTkFont(size=12), corner_radius=6
+        ).grid(row=0, column=1)
+
         # ── Cartas (desplegable) ──
         self._cartas_toggle = ctk.CTkButton(
             nav, text="🃏  Cartas  ▶", anchor="w",
@@ -161,6 +177,7 @@ class App(ctk.CTk):
         self._build_albumes()
         self._build_stats()
         self._build_graficas()
+        self._build_global_search_frame()
         self._show("cartas")
 
     def _sep(self, parent):
@@ -248,6 +265,92 @@ class App(ctk.CTk):
         self._build_graficas()
         self._show("cartas")
 
+    def _build_global_search_frame(self):
+        f = ctk.CTkFrame(self._main, fg_color="transparent")
+        f.grid_columnconfigure(0, weight=1)
+        f.grid_rowconfigure(1, weight=1)
+        f.grid_rowconfigure(3, weight=1)
+        self._frames["global_search"] = f
+
+        ctk.CTkLabel(f, text="Cartas en colección",
+                     font=ctk.CTkFont(size=14, weight="bold"),
+                     text_color="#f0c040").grid(row=0, column=0, sticky="w", padx=8, pady=(8, 2))
+
+        tf1 = ctk.CTkFrame(f, fg_color="transparent")
+        tf1.grid(row=1, column=0, sticky="nsew", padx=4, pady=(0, 4))
+        tf1.grid_columnconfigure(0, weight=1)
+        tf1.grid_rowconfigure(0, weight=1)
+
+        cols1 = ("tipo", "cant", "nombre", "ubicacion", "ubicacion_copia")
+        self._gs_cartas_tree = ttk.Treeview(tf1, columns=cols1, show="headings")
+        for col, head, width, anchor in [
+            ("tipo",           "Tipo",       100, "w"),
+            ("cant",           "Cant",        50, "center"),
+            ("nombre",         "Nombre",     300, "w"),
+            ("ubicacion",      "Ubicación",  160, "w"),
+            ("ubicacion_copia","Copia",      160, "w"),
+        ]:
+            self._gs_cartas_tree.heading(col, text=head)
+            self._gs_cartas_tree.column(col, width=width, anchor=anchor)
+        vsb1 = ttk.Scrollbar(tf1, orient="vertical", command=self._gs_cartas_tree.yview)
+        self._gs_cartas_tree.configure(yscrollcommand=vsb1.set)
+        self._gs_cartas_tree.grid(row=0, column=0, sticky="nsew")
+        vsb1.grid(row=0, column=1, sticky="ns")
+
+        ctk.CTkLabel(f, text="Cartas en decks",
+                     font=ctk.CTkFont(size=14, weight="bold"),
+                     text_color="#f0c040").grid(row=2, column=0, sticky="w", padx=8, pady=(4, 2))
+
+        tf2 = ctk.CTkFrame(f, fg_color="transparent")
+        tf2.grid(row=3, column=0, sticky="nsew", padx=4, pady=(0, 4))
+        tf2.grid_columnconfigure(0, weight=1)
+        tf2.grid_rowconfigure(0, weight=1)
+
+        cols2 = ("deck", "cant", "nombre", "en_album")
+        self._gs_decks_tree = ttk.Treeview(tf2, columns=cols2, show="headings")
+        for col, head, width, anchor in [
+            ("deck",     "Deck",          150, "w"),
+            ("cant",     "Cant",           50, "center"),
+            ("nombre",   "Nombre",        300, "w"),
+            ("en_album", "Copia en álbum",130, "center"),
+        ]:
+            self._gs_decks_tree.heading(col, text=head)
+            self._gs_decks_tree.column(col, width=width, anchor=anchor)
+        vsb2 = ttk.Scrollbar(tf2, orient="vertical", command=self._gs_decks_tree.yview)
+        self._gs_decks_tree.configure(yscrollcommand=vsb2.set)
+        self._gs_decks_tree.tag_configure("en_album", foreground="#2ecc71")
+        self._gs_decks_tree.grid(row=0, column=0, sticky="nsew")
+        vsb2.grid(row=0, column=1, sticky="ns")
+
+    def _do_global_search(self):
+        query = self._global_search_var.get().strip()
+        if not query:
+            return
+        self._show("global_search")
+        self._refresh_global_search(query)
+
+    def _refresh_global_search(self, query=None):
+        if query is None:
+            query = self._global_search_var.get().strip()
+
+        self._gs_cartas_tree.delete(*self._gs_cartas_tree.get_children())
+        for r in db.get_cartas(search=query, mostrar_vacios=False, include_pendientes=False):
+            r = dict(r)
+            self._gs_cartas_tree.insert("", "end", values=(
+                r.get("tipo", ""), r.get("cant", ""),
+                r.get("nombre", ""), r.get("ubicacion", ""),
+                r.get("ubicacion_copia", ""),
+            ))
+
+        self._gs_decks_tree.delete(*self._gs_decks_tree.get_children())
+        for r in db.get_decks(search=query):
+            r = dict(r)
+            en = r.get("repetidos", 0)
+            self._gs_decks_tree.insert("", "end", iid=str(r["id"]),
+                tags=("en_album",) if en else (),
+                values=(r.get("deck_nombre", ""), r["cant"], r["nombre"],
+                        "Sí" if en else "No"))
+
     def _show(self, key):
         for f in self._frames.values():
             f.grid_remove()
@@ -255,13 +358,14 @@ class App(ctk.CTk):
         for k, b in self._nav_btns.items():
             b.configure(fg_color="#1f6aa5" if k == key else "transparent")
         refreshers = {
-            "cartas":     self._refresh_cartas,
-            "repetidos":  self._refresh_repetidos,
-            "decks":      self._refresh_decks,
-            "pendientes": self._refresh_pendientes,
-            "albumes":    self._refresh_albumes,
-            "stats":      self._refresh_stats,
-            "graficas":   self._refresh_graficas,
+            "cartas":         self._refresh_cartas,
+            "repetidos":      self._refresh_repetidos,
+            "decks":          self._refresh_decks,
+            "pendientes":     self._refresh_pendientes,
+            "albumes":        self._refresh_albumes,
+            "stats":          self._refresh_stats,
+            "graficas":       self._refresh_graficas,
+            "global_search":  self._refresh_global_search,
         }
         refreshers[key]()
 
@@ -591,16 +695,7 @@ class App(ctk.CTk):
                                 "Este hueco está vacío. Doble clic para añadir una carta.")
             return
 
-        resp = messagebox.askyesnocancel(
-            "Eliminar",
-            "¿Deseas eliminar la carta completamente o convertirla en hueco vacío?\n\n"
-            "Sí = dejar como hueco vacío\nNo = eliminar")
-        if resp is None:
-            return
-        if resp:
-            db.clear_carta(carta_id)
-        else:
-            db.delete_carta(carta_id)
+        db.clear_carta(carta_id)
         self._refresh_cartas()
 
     def _cartas_context_menu(self, event):
@@ -624,9 +719,6 @@ class App(ctk.CTk):
         self._ctx_menu.add_command(
             label="Dejar hueco vacío",
             command=lambda: (db.clear_carta(int(parts[1])), self._refresh_cartas()))
-        self._ctx_menu.add_command(
-            label="Eliminar carta",
-            command=lambda: (db.delete_carta(int(parts[1])), self._refresh_cartas()))
         self._ctx_menu.tk_popup(event.x_root, event.y_root)
 
     def _mover_a_deck_dialog(self, carta_id):
@@ -1170,6 +1262,18 @@ class App(ctk.CTk):
         canvas.get_tk_widget().grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
         self._graf_canvas = canvas
 
+    # ── Refresh global ────────────────────────────────────────────────────────
+
+    def _refresh_all(self):
+        self._refresh_cartas()
+        self._refresh_repetidos()
+        self._refresh_decks()
+        self._refresh_pendientes()
+        self._refresh_albumes()
+        self._refresh_stats()
+        self._refresh_graficas()
+        self._refresh_global_search()
+
     # ── Import ────────────────────────────────────────────────────────────────
 
     def _check_import(self):
@@ -1213,7 +1317,7 @@ class App(ctk.CTk):
         def poll():
             if done_flag.is_set():
                 pw.destroy()
-                self._refresh_cartas()
+                self._refresh_all()
             else:
                 self.after(150, poll)
 

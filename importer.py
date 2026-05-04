@@ -54,6 +54,8 @@ def import_excel(path, progress_cb=None):
 
     total_steps = len(TIPOS) + 1  # +1 for decks
 
+    sort_counter = 0
+
     for step, tipo in enumerate(TIPOS):
         if tipo not in wb.sheetnames:
             if progress_cb:
@@ -88,14 +90,16 @@ def import_excel(path, progress_cb=None):
                 # Preserve vacant slots within a data range
                 if seen_data:
                     conn.execute(
-                        "INSERT INTO cartas (tipo,cant,nombre,vacio) VALUES (?,0,NULL,1)",
-                        (tipo,),
+                        "INSERT INTO cartas (tipo,cant,nombre,vacio,sort_order) VALUES (?,0,NULL,1,?)",
+                        (tipo, sort_counter),
                     )
+                    sort_counter += 1
                     if not is_single:
                         conn.execute(
-                            "INSERT INTO cartas (tipo,cant,nombre,vacio) VALUES (?,0,NULL,1)",
-                            (tipo,),
+                            "INSERT INTO cartas (tipo,cant,nombre,vacio,sort_order) VALUES (?,0,NULL,1,?)",
+                            (tipo, sort_counter),
                         )
+                        sort_counter += 1
                 continue
 
             consecutive_blanks = 0
@@ -103,8 +107,8 @@ def import_excel(path, progress_cb=None):
 
             # Left block
             conn.execute(
-                "INSERT INTO cartas (tipo,cant,nombre,ubicacion,ubicacion_copia,cant2,repetidos,vacio) "
-                "VALUES (?,?,?,?,?,?,?,?)",
+                "INSERT INTO cartas (tipo,cant,nombre,ubicacion,ubicacion_copia,cant2,repetidos,vacio,sort_order) "
+                "VALUES (?,?,?,?,?,?,?,?,?)",
                 (
                     tipo,
                     _safe(row, 0, 0) or 0,
@@ -114,14 +118,16 @@ def import_excel(path, progress_cb=None):
                     _safe(row, 4),
                     _to_bool(_safe(row, 5)),
                     0 if left_has else 1,
+                    sort_counter,
                 ),
             )
+            sort_counter += 1
 
             # Right block
             if not is_single:
                 conn.execute(
-                    "INSERT INTO cartas (tipo,cant,nombre,ubicacion,ubicacion_copia,cant2,repetidos,vacio) "
-                    "VALUES (?,?,?,?,?,?,?,?)",
+                    "INSERT INTO cartas (tipo,cant,nombre,ubicacion,ubicacion_copia,cant2,repetidos,vacio,sort_order) "
+                    "VALUES (?,?,?,?,?,?,?,?,?)",
                     (
                         tipo,
                         _safe(row, 7, 0) or 0,
@@ -131,8 +137,10 @@ def import_excel(path, progress_cb=None):
                         _safe(row, 11),
                         _to_bool(_safe(row, 12)),
                         0 if right_has else 1,
+                        sort_counter,
                     ),
                 )
+                sort_counter += 1
 
         if progress_cb:
             progress_cb(step + 1, total_steps)

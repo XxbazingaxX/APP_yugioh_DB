@@ -22,7 +22,8 @@ def init_db():
             ubicacion_copia  TEXT,
             cant2            REAL,
             repetidos        INTEGER DEFAULT 0,
-            vacio            INTEGER DEFAULT 0
+            vacio            INTEGER DEFAULT 0,
+            sort_order       INTEGER DEFAULT 0
         );
         CREATE TABLE IF NOT EXISTS decks (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,12 +49,16 @@ def init_db():
             paginas INTEGER NOT NULL DEFAULT 1
         );
     """)
-    # Migración: añadir deck_nombre si la tabla ya existía sin ella
-    try:
-        conn.execute("ALTER TABLE decks ADD COLUMN deck_nombre TEXT DEFAULT 'Deck Principal'")
-        conn.commit()
-    except Exception:
-        pass
+    # Migraciones
+    for migration in [
+        "ALTER TABLE decks ADD COLUMN deck_nombre TEXT DEFAULT 'Deck Principal'",
+        "ALTER TABLE cartas ADD COLUMN sort_order INTEGER DEFAULT 0",
+    ]:
+        try:
+            conn.execute(migration)
+            conn.commit()
+        except Exception:
+            pass
     conn.close()
 
 
@@ -72,7 +77,7 @@ def get_cartas(tipo=None, search=None, mostrar_vacios=True, include_pendientes=T
 
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
     rows = list(conn.execute(
-        f"SELECT *, 0 as pendiente FROM cartas {where} ORDER BY id", params
+        f"SELECT *, 0 as pendiente FROM cartas {where} ORDER BY sort_order, id", params
     ).fetchall())
 
     if include_pendientes and search:

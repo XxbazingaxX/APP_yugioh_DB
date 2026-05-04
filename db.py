@@ -99,7 +99,7 @@ def get_stats():
     total = int(cfg["valor"]) if cfg else 0
 
     owned = conn.execute(
-        "SELECT COALESCE(SUM(cant), 0) FROM cartas WHERE vacio=0"
+        "SELECT COUNT(*) FROM cartas WHERE vacio=0"
     ).fetchone()[0]
 
     por_tipo = conn.execute(

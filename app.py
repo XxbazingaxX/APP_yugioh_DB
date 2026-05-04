@@ -872,9 +872,12 @@ class App(ctk.CTk):
         e.bind("<Return>", lambda _: self._refresh_decks())
         ctk.CTkButton(tb, text="Buscar", width=75,
                       command=self._refresh_decks).grid(row=0, column=3, padx=4)
+        ctk.CTkButton(tb, text="Renombrar deck", width=120,
+                      fg_color="#1a3a5a", hover_color="#1f6aa5",
+                      command=self._renombrar_deck).grid(row=0, column=4, padx=4)
         ctk.CTkButton(tb, text="Eliminar deck", width=110,
                       fg_color="#8b0000", hover_color="#a00000",
-                      command=self._eliminar_deck).grid(row=0, column=4, padx=4)
+                      command=self._eliminar_deck).grid(row=0, column=5, padx=4)
 
         ctk.CTkLabel(f,
             text="Cartas movidas al deck desde el álbum.  Verde = hay copia en álbum.",
@@ -932,6 +935,36 @@ class App(ctk.CTk):
         if messagebox.askyesno("Eliminar", "¿Quitar esta carta del deck?"):
             db.delete_deck_carta(int(sel[0]))
             self._refresh_decks()
+
+    def _renombrar_deck(self):
+        filtro = self._deck_filtro_var.get()
+        if filtro == "Todos":
+            messagebox.showinfo("Info", "Selecciona un deck específico para renombrarlo.")
+            return
+        dlg = ctk.CTkToplevel(self)
+        dlg.title("Renombrar deck")
+        dlg.geometry("340x130")
+        dlg.grab_set()
+        dlg.resizable(False, False)
+        ctk.CTkLabel(dlg, text=f"Nuevo nombre para '{filtro}':").pack(pady=(16, 4), padx=16, anchor="w")
+        var = ctk.StringVar(value=filtro)
+        entry = ctk.CTkEntry(dlg, textvariable=var, width=300)
+        entry.pack(padx=16)
+        entry.focus()
+        entry.select_range(0, "end")
+
+        def confirmar(_=None):
+            nuevo = var.get().strip()
+            if not nuevo or nuevo == filtro:
+                dlg.destroy()
+                return
+            db.rename_deck(filtro, nuevo)
+            self._deck_filtro_var.set(nuevo)
+            dlg.destroy()
+            self._refresh_decks()
+
+        entry.bind("<Return>", confirmar)
+        ctk.CTkButton(dlg, text="Guardar", command=confirmar).pack(pady=10)
 
     def _eliminar_deck(self):
         filtro = self._deck_filtro_var.get()

@@ -244,6 +244,13 @@ def delete_deck(deck_nombre):
     conn.close()
 
 
+def rename_deck(old_nombre, new_nombre):
+    conn = get_conn()
+    conn.execute("UPDATE decks SET deck_nombre=? WHERE deck_nombre=?", (new_nombre, old_nombre))
+    conn.commit()
+    conn.close()
+
+
 # ── Álbumes ──────────────────────────────────────────────────────────────────
 
 def get_albums():

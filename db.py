@@ -1,7 +1,13 @@
 import sqlite3
 import os
+import sys
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "biblioteca.db")
+if getattr(sys, "frozen", False):
+    _BASE = os.path.dirname(sys.executable)
+else:
+    _BASE = os.path.dirname(os.path.abspath(__file__))
+
+DB_PATH = os.path.join(_BASE, "biblioteca.db")
 
 
 def get_conn():

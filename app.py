@@ -12,7 +12,9 @@ import db
 import importer
 import exporter
 
-EXCEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Cartas YUGIOH.xlsx")
+import sys as _sys
+_BASE = os.path.dirname(_sys.executable) if getattr(_sys, "frozen", False) else os.path.dirname(os.path.abspath(__file__))
+EXCEL_PATH = os.path.join(_BASE, "Cartas YUGIOH.xlsx")
 TIPOS = ["Monstruos", "Rituales", "Fusion", "Sincronia", "Enlace", "XYZ", "Pendulo", "Magia", "Trampas"]
 
 TIPO_COLORS = {
@@ -54,7 +56,6 @@ class App(ctk.CTk):
         apply_treeview_style()
         db.init_db()
         self._build_ui()
-        self.after(100, self._check_import)
 
     # ── Layout ───────────────────────────────────────────────────────────────
 
@@ -154,6 +155,7 @@ class App(ctk.CTk):
             ("⟳  Reimportar", "#1e2a3a", "#2a3d55", self._reimport),
             ("↓  Exportar",   "#1a3a1a", "#2d6a4f", self._exportar_excel),
             ("↑  Actualizar", "#3a1a3a", "#6d2b69", self._actualizar_excel),
+            ("📂  Importar BD","#2a1a0a", "#5a3a10", self._importar_bd),
         ]):
             ctk.CTkButton(bot, text=txt, fg_color=color, hover_color=hov,
                           font=ctk.CTkFont(size=12), corner_radius=6,
@@ -1317,6 +1319,20 @@ class App(ctk.CTk):
             self._reimport()
 
     def _reimport(self):
+        if not messagebox.askyesno(
+            "⚠ Reimportar desde Excel",
+            "Esto BORRARÁ y recreará:\n"
+            "  • Todas las cartas\n"
+            "  • Todos los decks\n\n"
+            "Se CONSERVARÁ:\n"
+            "  • Álbumes\n"
+            "  • Cartas pendientes\n"
+            "  • Configuración\n\n"
+            "Las ediciones manuales (ubicación, cant2…)\n"
+            "que no estén en el Excel se perderán.\n\n"
+            "¿Continuar?"):
+            return
+
         path = EXCEL_PATH if os.path.exists(EXCEL_PATH) else ""
         if not path:
             path = filedialog.askopenfilename(
@@ -1387,6 +1403,27 @@ class App(ctk.CTk):
 
         self._run_excel_op(op, mostrar_backup=True)
 
+    def _importar_bd(self):
+        path = filedialog.askopenfilename(
+            title="Seleccionar base de datos",
+            filetypes=[("SQLite DB", "*.db"), ("Todos", "*.*")])
+        if not path:
+            return
+        if not messagebox.askyesno(
+            "Importar BD",
+            "Esto reemplazará la base de datos actual con la seleccionada.\n\n"
+            "¿Continuar?"):
+            return
+        import shutil
+        from datetime import datetime
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup = db.DB_PATH + f".backup_{ts}"
+        if os.path.exists(db.DB_PATH):
+            shutil.copy2(db.DB_PATH, backup)
+        shutil.copy2(path, db.DB_PATH)
+        self._refresh_all()
+        messagebox.showinfo("Listo", f"Base de datos cargada.\nBackup anterior en:\n{backup}")
+
     def _run_excel_op(self, fn, msg=None, mostrar_backup=False):
         pw = ctk.CTkToplevel(self)
         pw.title("Procesando…")
@@ -1424,4 +1461,7 @@ class App(ctk.CTk):
 
 
 if __name__ == "__main__":
-    App().mainloop()
+    import sys
+    app = App()
+    app.protocol("WM_DELETE_WINDOW", lambda: (app.destroy(), sys.exit(0)))
+    app.mainloop()

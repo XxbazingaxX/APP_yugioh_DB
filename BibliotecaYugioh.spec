@@ -5,7 +5,7 @@ a = Analysis(
     ['app.py'],
     pathex=[],
     binaries=[],
-    datas=[('C:/Users/Bazinga/AppData/Local/Programs/Python/Python314/Lib/site-packages/customtkinter', 'customtkinter'), ('C:/Users/Bazinga/AppData/Local/Programs/Python/Python314/Lib/site-packages/matplotlib/mpl-data', 'matplotlib/mpl-data')],
+    datas=[('C:/Users/Carlos/AppData/Local/Programs/Python/Python314/Lib/site-packages/customtkinter', 'customtkinter'), ('C:/Users/Carlos/AppData/Local/Programs/Python/Python314/Lib/site-packages/matplotlib/mpl-data', 'matplotlib/mpl-data')],
     hiddenimports=['customtkinter', 'matplotlib.backends.backend_tkagg', 'matplotlib.backends._backend_tk'],
     hookspath=[],
     hooksconfig={},

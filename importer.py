@@ -101,9 +101,8 @@ def import_excel(path, progress_cb=None):
 
         bounds = table_bounds.get(tipo)
         min_row = bounds[0] if bounds else 2
-        max_row = bounds[1] if bounds else None
 
-        all_rows = list(ws.iter_rows(min_row=min_row, max_row=max_row, values_only=True))
+        all_rows = list(ws.iter_rows(min_row=min_row, values_only=True))
 
         # Determinar rango real de cada bloque por separado
         first_l = last_l = first_r = last_r = -1
